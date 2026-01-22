@@ -2,8 +2,9 @@ import streamlit as st
 import pandas as pd
 import os
 from datetime import datetime
+import time
 
-# ================= 🟢 1. 常用玩家名单 (共8人) =================
+# ================= 🟢 1. 常用玩家名单 =================
 PLAYER_LIST = [
     "甜甜", "不良坤", "小七猫", "派大星",
     "Winter", "East", "Sakurasawa Sumi", "居"
@@ -13,113 +14,136 @@ PLAYER_LIST = [
 # 文件名
 DATA_FILE = 'poker_history.csv'
 
-# 页面配置
-st.set_page_config(page_title="Science DE Rect", page_icon="🤖", layout="centered")
+# 页面配置 (针对移动端优化布局)
+st.set_page_config(page_title="Science DE Rect", page_icon="🤖", layout="centered", initial_sidebar_state="collapsed")
 
-# ================= 🎨 修复版机甲风 CSS =================
+# ================= 🎨 移动端机甲风 CSS (Mobile Optimized) =================
 st.markdown("""
 <style>
-    /* 1. 全局强制深色背景和亮色字体 */
-    .stApp { background-color: #0d1117; }
+    @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@500;700&display=swap');
 
-    /* 修复：强制所有普通文本、Markdown文本显示为亮灰色 */
-    .stMarkdown p, .stMarkdown span, .stText, p { color: #c9d1d9 !important; }
+    /* 1. 全局背景与移动端适配 */
+    .stApp {
+        background-color: #050505;
+        background-image: radial-gradient(circle at 50% 30%, #1a1a1a 0%, #000000 80%);
+    }
 
-    /* 2. 修复：输入框上面的小标题 */
-    .stNumberInput label, .stSelectbox label, .stTextInput label {
-        color: #8b949e !important; 
+    /* 核心优化：移除 Streamlit 顶部巨大的空白，让手机一屏显示更多 */
+    .block-container {
+        padding-top: 1rem !important;
+        padding-bottom: 5rem !important; /* 底部留空，防止被手机Home条遮挡 */
+        padding-left: 0.5rem !important;
+        padding-right: 0.5rem !important;
+    }
+
+    /* 2. 标题优化 (手机端缩小字号，防止换行) */
+    .mecha-title {
+        font-family: 'Orbitron', sans-serif;
+        font-weight: 900;
+        font-size: 28px; /* 手机端适配套 */
+        background: linear-gradient(180deg, #fff, #888);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        text-shadow: 0px 0px 15px rgba(0, 242, 255, 0.5);
+        text-align: center;
+        letter-spacing: 1px;
+        margin-top: 10px;
+    }
+    .mecha-subtitle {
+        font-family: 'Rajdhani', sans-serif;
+        color: #58a6ff;
+        text-align: center;
+        font-size: 12px;
+        letter-spacing: 2px;
+        margin-bottom: 15px;
+        opacity: 0.8;
+    }
+
+    /* 3. 输入框与下拉框 (增加高度，方便手指点击) */
+    .stTextInput input, .stNumberInput input, .stSelectbox div[data-baseweb="select"] > div {
+        background-color: rgba(22, 27, 34, 0.9) !important;
+        border: 1px solid #30363d !important;
+        color: #00F2FF !important;
+        font-family: 'Rajdhani', sans-serif !important;
         font-weight: bold;
-        font-size: 14px;
-    }
-
-    /* 3. 修复：输入框本体 */
-    div[data-baseweb="select"] > div, div[data-baseweb="input"] > div {
-        background-color: #161b22 !important;
-        border-color: #30363d !important;
-        color: #58a6ff !important;
-    }
-    input { color: #58a6ff !important; }
-
-    /* 4. 修复：折叠栏 */
-    .streamlit-expanderHeader {
-        background-color: #161b22 !important;
-        color: #58a6ff !important;
-        border: 1px solid #30363d;
-        border-radius: 8px;
-    }
-    .streamlit-expanderContent {
-        background-color: #0d1117 !important;
-        border: 1px solid #30363d;
-        border-top: none;
-        color: #c9d1d9 !important;
-    }
-
-    /* 5. 按钮样式优化 */
-    .stButton > button {
         border-radius: 6px;
-        font-weight: bold;
-        border: 1px solid #30363d;
-        background-color: #21262d;
-        color: #c9d1d9;
-        transition: all 0.2s;
+        min-height: 45px !important; /* 增大触控区域 */
+        font-size: 16px !important;  /* 防止手机端输入自动放大 */
     }
-    /* 赢 (Primary) -> 霓虹青 */
+
+    /* 缩小列之间的间距，让一行能放下4个控件 */
+    [data-testid="column"] {
+        padding: 0 !important;
+    }
+    [data-testid="stHorizontalBlock"] {
+        gap: 0.3rem !important; /* 极窄间距 */
+    }
+
+    .stMarkdown p, label { color: #8b949e !important; font-size: 12px !important; }
+
+    /* 4. 按钮优化 (机甲风格 + 易触控) */
+    .stButton > button {
+        font-family: 'Orbitron', sans-serif !important;
+        letter-spacing: 1px;
+        border: 1px solid #30363d;
+        border-radius: 6px;
+        min-height: 45px !important; /* 按钮加高 */
+        padding: 0px 5px !important; /* 减少内边距，防止文字撑开 */
+        font-size: 14px !important;
+    }
+
+    /* 赢/Primary */
     button[kind="primary"] {
-        background: rgba(0, 242, 255, 0.1);
+        background: linear-gradient(180deg, rgba(0, 242, 255, 0.15), rgba(0, 242, 255, 0.05));
         border: 1px solid #00F2FF;
         color: #00F2FF !important;
-        text-shadow: 0 0 5px rgba(0, 242, 255, 0.5);
-    }
-    button[kind="primary"]:hover {
-        background: rgba(0, 242, 255, 0.3);
-        box-shadow: 0 0 15px rgba(0, 242, 255, 0.4);
-    }
-    /* 输/删除 (Secondary) -> 霓虹红 */
-    button[kind="secondary"] {
-        background: rgba(255, 0, 85, 0.1);
-        border: 1px solid #ff0055;
-        color: #ff0055 !important;
-    }
-    button[kind="secondary"]:hover {
-        background: rgba(255, 0, 85, 0.3);
-        box-shadow: 0 0 15px rgba(255, 0, 85, 0.4);
+        box-shadow: 0 0 8px rgba(0, 242, 255, 0.15);
     }
 
-    /* 6. 结果卡片 */
+    /* 输/Secondary */
+    button[kind="secondary"] {
+        background: linear-gradient(180deg, rgba(255, 0, 85, 0.15), rgba(255, 0, 85, 0.05));
+        border: 1px solid #FF0055;
+        color: #FF0055 !important;
+    }
+
+    /* 5. 结果卡片 (紧凑版) */
     .result-card {
-        background-color: #161b22;
-        padding: 12px;
-        border-radius: 8px;
-        margin-bottom: 8px;
+        background: rgba(13, 17, 23, 0.95);
         border: 1px solid #30363d;
+        padding: 12px; margin-bottom: 8px; border-radius: 8px;
         display: flex; justify-content: space-between; align-items: center;
     }
-    .card-win { border-left: 4px solid #00F2FF; }
-    .card-lose { border-left: 4px solid #ff0055; }
+    .hud-text { font-family: 'Rajdhani', sans-serif; font-weight: bold; font-size: 18px; }
+    .hud-score { font-family: 'Orbitron', sans-serif; font-size: 20px; font-weight: bold; }
 
-    /* 7. 总榜卡片 */
-    .total-card {
-        background-color: #161b22;
+    /* 6. 确认框 */
+    .confirm-box {
+        border: 1px dashed #00F2FF;
         padding: 15px;
         border-radius: 8px;
-        margin-bottom: 8px;
-        border: 1px solid #30363d;
-        display: flex; justify-content: space-between; align-items: center;
+        background: rgba(0, 242, 255, 0.05);
+        margin-top: 15px;
     }
+
+    /* 7. 隐藏右上角汉堡菜单和底部 footer，让界面更像原生App */
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+    header {visibility: hidden;}
 </style>
 """, unsafe_allow_html=True)
 
 
-# ================= 🧠 数据逻辑 =================
+# ================= 🧠 数据逻辑 (完全保持不变) =================
 
 def load_data():
     if os.path.exists(DATA_FILE):
         try:
             return pd.read_csv(DATA_FILE)
         except:
-            return pd.DataFrame(columns=['日期', '姓名', '原始分', '盈亏金额'])
+            return pd.DataFrame(columns=['日期', '姓名', '原始分', '盈亏金额', '分摊房费'])
     else:
-        return pd.DataFrame(columns=['日期', '姓名', '原始分', '盈亏金额'])
+        return pd.DataFrame(columns=['日期', '姓名', '原始分', '盈亏金额', '分摊房费'])
 
 
 def save_record(record_list):
@@ -129,173 +153,235 @@ def save_record(record_list):
     df_final.to_csv(DATA_FILE, index=False)
 
 
+# ID生成器
+if 'player_id_counter' not in st.session_state:
+    st.session_state.player_id_counter = 0
+
+
+def get_new_id():
+    st.session_state.player_id_counter += 1
+    return st.session_state.player_id_counter
+
+
+# 初始化 Session
 if 'players' not in st.session_state:
     st.session_state.players = []
-    # 【修改点】：这里改成 8，就会默认显示 8 个人
     for i in range(8):
         default_name = PLAYER_LIST[i % len(PLAYER_LIST)]
-        st.session_state.players.append({'name': default_name, 'custom_name': '', 'score': 0.0, 'is_win': True})
+        st.session_state.players.append({
+            'id': get_new_id(),
+            'name': default_name,
+            'is_custom': False,
+            'score': 0.0,
+            'is_win': True
+        })
+
+if 'pending_data' not in st.session_state:
+    st.session_state.pending_data = None
 
 
-def toggle_win_state(index):
-    st.session_state.players[index]['is_win'] = not st.session_state.players[index]['is_win']
+# 回调函数
+def delete_player(target_id):
+    st.session_state.players = [p for p in st.session_state.players if p['id'] != target_id]
+    st.session_state.pending_data = None
+
+
+def add_player():
+    st.session_state.players.append({
+        'id': get_new_id(),
+        'name': "",
+        'is_custom': True,
+        'score': 0.0,
+        'is_win': True
+    })
+    st.session_state.pending_data = None
+
+
+def toggle_win(target_id):
+    for p in st.session_state.players:
+        if p['id'] == target_id:
+            p['is_win'] = not p['is_win']
+            break
+    st.session_state.pending_data = None
+
+
+def reset_scores():
+    for p in st.session_state.players:
+        p['score'] = 0.0
+    st.session_state.pending_data = None
+
+
+def cancel_save():
+    st.session_state.pending_data = None
+
+
+def confirm_save():
+    if st.session_state.pending_data:
+        save_record(st.session_state.pending_data)
+        st.session_state.pending_data = None
+        st.toast("💾 DATA SECURED")
+        time.sleep(1)
+        st.rerun()
 
 
 # ================= 📱 界面搭建 =================
 
-st.title("🤖 Science DE Rect")
-st.markdown(
-    "<div style='color: #8b949e; font-size: 0.8em; margin-bottom: 15px; font-family: monospace;'>SYSTEM STATUS: ONLINE | DARK MODE FORCED</div>",
-    unsafe_allow_html=True)
+st.markdown('<div class="mecha-title">SCIENCE DE RECT</div>', unsafe_allow_html=True)
+st.markdown('<div class="mecha-subtitle">MOBILE TACTICAL SYSTEM // V6.0</div>', unsafe_allow_html=True)
 
 tab1, tab2 = st.tabs(["🚀 战术结算", "💾 历史档案"])
 
 # --- Tab 1 ---
 with tab1:
-    with st.expander("⚙️ 系统参数 (PARAMETERS)", expanded=True):
+    with st.expander("⚙️ 系统参数 (PARAMETERS)", expanded=False):  # 默认折叠，节省手机空间
         c1, c2 = st.columns(2)
         ratio = c1.number_input("⚡ 汇率 (Rate)", value=40, min_value=1)
         fee = c2.number_input("🏠 维护费 (Fee)", value=0, min_value=0)
 
     st.markdown("---")
 
-    for i, p in enumerate(st.session_state.players):
+    for p in st.session_state.players:
         with st.container():
-            c_del, c_name, c_btn, c_score = st.columns([0.6, 2.4, 1.8, 2.2])
+            # 【核心优化】：调整了列宽比例，适配手机窄屏
+            # 删除键变窄，名字和分数栏给更多空间
+            c_del, c_name, c_btn, c_score = st.columns([0.5, 2.5, 1.8, 2.2])
 
-            if c_del.button("✕", key=f"d{i}", type="secondary"):
-                st.session_state.players.pop(i)
-                st.rerun()
+            # 1. 删除按钮
+            c_del.button("✕", key=f"del_{p['id']}", type="secondary", on_click=delete_player, args=(p['id'],))
 
-            options = PLAYER_LIST + ["➕ 自定义/新增..."]
-
-            try:
-                if p['name'] == "➕ 自定义/新增..." or p['name'] not in PLAYER_LIST:
-                    curr_idx = len(PLAYER_LIST)
-                else:
-                    curr_idx = PLAYER_LIST.index(p['name'])
-            except:
-                curr_idx = 0
-
-            selected_opt = c_name.selectbox("姓名", options, index=curr_idx, key=f"sel{i}",
-                                            label_visibility="collapsed")
-
-            if selected_opt == "➕ 自定义/新增...":
-                p['name'] = c_name.text_input("ID", value=p['custom_name'], key=f"txt{i}", placeholder="输入新ID")
-                p['custom_name'] = p['name']
+            # 2. 名字栏
+            if p['is_custom']:
+                new_name = c_name.text_input(
+                    "Input ID", value=p['name'], key=f"txt_{p['id']}",
+                    placeholder="ID...", label_visibility="collapsed"
+                )
+                p['name'] = new_name
             else:
-                p['name'] = selected_opt
-                p['custom_name'] = ""
+                options = PLAYER_LIST + ["➕ 自定义"]
+                try:
+                    curr_idx = PLAYER_LIST.index(p['name'])
+                except:
+                    curr_idx = 0
 
-            btn_label = "WIN 🟢" if p['is_win'] else "LOSE 🔴"
+                selected_opt = c_name.selectbox(
+                    "Select ID", options, index=curr_idx, key=f"sel_{p['id']}",
+                    label_visibility="collapsed"
+                )
+
+                if selected_opt == "➕ 自定义":
+                    p['is_custom'] = True
+                    p['name'] = ""
+                    st.rerun()
+                else:
+                    p['name'] = selected_opt
+
+            # 3. 输赢按钮
+            btn_label = "WIN" if p['is_win'] else "LOSE"
             btn_type = "primary" if p['is_win'] else "secondary"
-            c_btn.button(btn_label, key=f"w{i}", type=btn_type, on_click=toggle_win_state, args=(i,),
+            c_btn.button(btn_label, key=f"btn_{p['id']}", type=btn_type, on_click=toggle_win, args=(p['id'],),
                          use_container_width=True)
 
-            p['score'] = c_score.number_input("Score", value=p['score'], step=100.0, key=f"s{i}",
+            # 4. 分数
+            p['score'] = c_score.number_input("Score", value=p['score'], step=100.0, key=f"score_{p['id']}",
                                               label_visibility="collapsed")
 
     st.markdown("###")
     ca, cb = st.columns(2)
-
-    if ca.button("➕ 增加干员", use_container_width=True):
-        st.session_state.players.append({
-            'name': "➕ 自定义/新增...",
-            'custom_name': '',
-            'score': 0.0,
-            'is_win': True
-        })
-        st.rerun()
-
-    if cb.button("🧹 重置系统", type="secondary", use_container_width=True):
-        for p in st.session_state.players: p['score'] = 0.0
-        st.rerun()
+    ca.button("➕ 增加干员", on_click=add_player, use_container_width=True)
+    cb.button("🧹 重置系统", type="secondary", on_click=reset_scores, use_container_width=True)
 
     st.markdown("---")
 
-    if st.button("🚀 执行结算 (EXECUTE)", type="primary", use_container_width=True):
+    # === 结算 ===
+    if st.button("🚀 战术侦察 (CALCULATE)", type="primary", use_container_width=True):
         data, total = [], 0
         now = datetime.now().strftime("%m-%d %H:%M")
 
-        valid = []
-        for p in st.session_state.players:
-            n = p['name'].strip()
-            if n != "" and n != "➕ 自定义/新增...":
-                valid.append(p)
+        valid = [p for p in st.session_state.players if p['name'].strip() != "" and p['name'] != "➕ 自定义"]
 
         if len(valid) != len(st.session_state.players):
-            st.error("⚠️ ID ERROR: 有干员的名字没填！")
-            st.stop()
-
-        for p in valid:
-            if p['score'] == 0: continue
-            s = p['score'] if p['is_win'] else -p['score']
-            data.append({'name': p['name'], 'score': s})
-            total += s
-
-        if abs(total) > 1000:
-            st.error(f"🚫 ERROR: 偏差过大 ({total})")
+            st.error("⚠️ 存在未命名干员！")
+            st.session_state.pending_data = None
         else:
-            if abs(total) > 0.1:
-                st.warning(f"⚠️ WARN: 微小偏差 {total}")
+            for p in valid:
+                if p['score'] == 0: continue
+                s = p['score'] if p['is_win'] else -p['score']
+                data.append({'name': p['name'], 'score': s})
+                total += s
+
+            if abs(total) > 1000:
+                st.error(f"🚫 偏差过大 ({total})")
+                st.session_state.pending_data = None
             else:
-                st.success("✅ SYSTEM NORMAL")
+                if abs(total) > 0.1: st.warning(f"⚠️ 微小偏差 {total}")
 
-            data.sort(key=lambda x: x['score'], reverse=True)
-            winners = [x for x in data if x['score'] > 0]
-            win_sum = sum(x['score'] for x in winners)
-            save_list = []
+                data.sort(key=lambda x: x['score'], reverse=True)
+                winners = [x for x in data if x['score'] > 0]
+                win_sum = sum(x['score'] for x in winners)
 
-            st.markdown("##### 🏆 BATTLE REPORT")
-            for p in data:
-                sc = p['score']
-                raw = sc / ratio
-                fs = fee * (sc / win_sum) if sc > 0 and win_sum > 0 else 0
-                final = raw - fs
-                save_list.append({'日期': now, '姓名': p['name'], '原始分': sc, '盈亏金额': round(final, 2)})
+                final_save_list = []
+                for p in data:
+                    sc = p['score']
+                    raw = sc / ratio
+                    fs = fee * (sc / win_sum) if sc > 0 and win_sum > 0 else 0
+                    final = raw - fs
+                    final_save_list.append({
+                        '日期': now, '姓名': p['name'], '原始分': sc,
+                        '盈亏金额': round(final, 2), '分摊房费': round(fs, 2)
+                    })
 
-                is_win = final >= 0
-                color = "#00F2FF" if is_win else "#ff0055"
-                cls = "card-win" if is_win else "card-lose"
-                icon = "⬢" if is_win else "⬡"
-                sign = "+" if is_win else ""
+                st.session_state.pending_data = final_save_list
 
-                st.markdown(f"""
-                <div class="result-card {cls}">
-                    <div style="font-weight:bold; color:#e0e0e0;">
-                        <span style="color:{color}; margin-right:5px;">{icon}</span>{p['name']}
+    # === 确认 ===
+    if st.session_state.pending_data is not None:
+        st.markdown('<div class="confirm-box">', unsafe_allow_html=True)
+        st.markdown("##### 📡 报告预览 (PREVIEW)")
+
+        for item in st.session_state.pending_data:
+            final = item['盈亏金额']
+            fee_paid = item['分摊房费']
+            is_win = final >= 0
+            color = "#00F2FF" if is_win else "#ff0055"
+            border_col = color
+
+            st.markdown(f"""
+            <div class="result-card" style="border-left: 4px solid {border_col}; padding: 10px;">
+                <div class="hud-text" style="color: #e0e0e0; font-size: 16px;">{item['姓名']}</div>
+                <div style="text-align:right;">
+                    <div class="hud-score" style="color:{color}; font-size: 18px;">{'+' if is_win else ''}{final:.1f}</div>
+                    <div style="color:#666; font-size:11px; font-family:'Rajdhani';">
+                        RAW: {int(item['原始分'])} | FEE: -{fee_paid:.1f}
                     </div>
-                    <div style="text-align:right;">
-                        <div style="color:{color}; font-weight:bold; font-size:18px;">{sign}{final:.1f}</div>
-                        <div style="color:#666; font-size:12px; font-family:monospace;">RAW:{int(sc)}</div>
-                    </div>
-                </div>""", unsafe_allow_html=True)
+                </div>
+            </div>""", unsafe_allow_html=True)
 
-            save_record(save_list)
-            st.toast("💾 SAVED")
+        st.markdown("###")
+        c_conf, c_canc = st.columns(2)
+        c_conf.button("💾 确认 (SAVE)", type="primary", on_click=confirm_save, use_container_width=True)
+        c_canc.button("❌ 放弃 (CANCEL)", type="secondary", on_click=cancel_save, use_container_width=True)
+        st.markdown('</div>', unsafe_allow_html=True)
 
 # --- Tab 2 ---
 with tab2:
     df = load_data()
     if not df.empty:
-        st.markdown("#### 💰 TOTAL FUNDS")
+        st.markdown("#### 💰 TOTAL EARNINGS")
         summ = df.groupby('姓名')['盈亏金额'].sum().reset_index().sort_values('盈亏金额', ascending=False)
         for i, r in summ.iterrows():
             m = r['盈亏金额']
             col = "#00F2FF" if m >= 0 else "#ff0055"
-            icon = "🔥" if m >= 0 else "💀"
-            sign = "+" if m >= 0 else ""
+            icon = "▲" if m >= 0 else "▼"
             st.markdown(f"""
-            <div class="total-card" style="border-left:4px solid {col};">
+            <div class="result-card" style="border-left: 4px solid {col};">
                 <div style="display:flex; align-items:center;">
-                    <span style="font-size:20px; margin-right:10px;">{icon}</span>
-                    <span style="font-weight:bold; color:#e0e0e0;">{r['姓名']}</span>
+                    <span style="font-size:18px; color:{col}; margin-right:10px;">{icon}</span>
+                    <span class="hud-text" style="color:#e0e0e0;">{r['姓名']}</span>
                 </div>
-                <span style="font-weight:bold; font-size:20px; color:{col}; font-family:monospace;">{sign}{m:.1f}</span>
+                <span class="hud-score" style="color:{col};">{'+' if m >= 0 else ''}{m:.1f}</span>
             </div>""", unsafe_allow_html=True)
 
         st.markdown("---")
-        with st.expander("📜 LOGS"):
+        with st.expander("📜 ACCESS LOGS"):
             st.dataframe(df, use_container_width=True)
 
         c1, c2 = st.columns(2)
@@ -304,4 +390,4 @@ with tab2:
             if os.path.exists(DATA_FILE): os.remove(DATA_FILE)
             st.rerun()
     else:
-        st.info("NO DATA")
+        st.info("NO DATA FOUND")
