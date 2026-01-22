@@ -4,12 +4,13 @@ import os
 from datetime import datetime
 import time
 
-# ================= 🟢 1. 常用玩家名单 =================
+# ================= 🟢 1. 常用玩家名单 (新增了阳光大牛子男孩) =================
 PLAYER_LIST = [
     "甜甜", "不良坤", "小七猫", "派大星",
-    "Winter", "East", "Sakurasawa Sumi", "居"
+    "Winter", "East", "Sakurasawa Sumi", "居",
+    "阳光大牛子男孩"
 ]
-# ==========================================================
+# =========================================================================
 
 # 文件名
 DATA_FILE = 'poker_history.csv'
@@ -143,7 +144,6 @@ def save_record(record_list):
     df_final.to_csv(DATA_FILE, index=False)
 
 
-# ID生成器
 if 'player_id_counter' not in st.session_state:
     st.session_state.player_id_counter = 0
 
@@ -156,8 +156,9 @@ def get_new_id():
 # 初始化 Session
 if 'players' not in st.session_state:
     st.session_state.players = []
-    for i in range(8):
-        default_name = PLAYER_LIST[i % len(PLAYER_LIST)]
+    # 自动根据名单长度生成行数 (现在是9行)
+    for i in range(len(PLAYER_LIST)):
+        default_name = PLAYER_LIST[i]
         st.session_state.players.append({
             'id': get_new_id(),
             'name': default_name,
@@ -195,16 +196,11 @@ def toggle_win(target_id):
     st.session_state.pending_data = None
 
 
-# 🔴 核心修复：彻底重置系统 (恢复出厂设置)
+# 重置系统 (也会恢复到9个人)
 def reset_scores():
-    # 1. 清空当前列表
     st.session_state.players = []
-
-    # 2. 重新按照初始名单生成 8 个人
-    # 注意：这里调用 get_new_id() 会生成全新的 ID
-    # 这样 Streamlit 就会认为这是一组全新的控件，从而彻底清除之前的输入缓存
-    for i in range(8):
-        default_name = PLAYER_LIST[i % len(PLAYER_LIST)]
+    for i in range(len(PLAYER_LIST)):
+        default_name = PLAYER_LIST[i]
         st.session_state.players.append({
             'id': get_new_id(),
             'name': default_name,
@@ -212,12 +208,8 @@ def reset_scores():
             'score': 0.0,
             'is_win': True
         })
-
-    # 3. 清空待确认数据
     st.session_state.pending_data = None
-
-    # 4. 提示
-    st.toast("🔄 SYSTEM REBOOTED (系统已重置)")
+    st.toast("🔄 SYSTEM REBOOTED")
 
 
 def cancel_save():
@@ -236,7 +228,7 @@ def confirm_save():
 # ================= 📱 界面搭建 =================
 
 st.markdown('<div class="mecha-title">SCIENCE DE RECT</div>', unsafe_allow_html=True)
-st.markdown('<div class="mecha-subtitle">MOBILE TACTICAL SYSTEM // V6.2 REBOOT</div>', unsafe_allow_html=True)
+st.markdown('<div class="mecha-subtitle">MOBILE TACTICAL SYSTEM // V6.3 LIST UPDATED</div>', unsafe_allow_html=True)
 
 tab1, tab2 = st.tabs(["🚀 战术结算", "💾 历史档案"])
 
@@ -291,8 +283,6 @@ with tab1:
     st.markdown("###")
     ca, cb = st.columns(2)
     ca.button("➕ 增加干员", on_click=add_player, use_container_width=True)
-
-    # 重置按钮：彻底恢复初始状态
     cb.button("🧹 重置系统", type="secondary", on_click=reset_scores, use_container_width=True)
 
     st.markdown("---")
