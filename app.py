@@ -17,30 +17,29 @@ DATA_FILE = 'poker_history.csv'
 # 页面配置 (针对移动端优化布局)
 st.set_page_config(page_title="Science DE Rect", page_icon="🤖", layout="centered", initial_sidebar_state="collapsed")
 
-# ================= 🎨 移动端机甲风 CSS (Mobile Optimized) =================
+# ================= 🎨 移动端机甲风 CSS =================
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@500;700&display=swap');
 
-    /* 1. 全局背景与移动端适配 */
+    /* 1. 全局背景 */
     .stApp {
         background-color: #050505;
         background-image: radial-gradient(circle at 50% 30%, #1a1a1a 0%, #000000 80%);
     }
 
-    /* 核心优化：移除 Streamlit 顶部巨大的空白，让手机一屏显示更多 */
     .block-container {
         padding-top: 1rem !important;
-        padding-bottom: 5rem !important; /* 底部留空，防止被手机Home条遮挡 */
+        padding-bottom: 5rem !important;
         padding-left: 0.5rem !important;
         padding-right: 0.5rem !important;
     }
 
-    /* 2. 标题优化 (手机端缩小字号，防止换行) */
+    /* 2. 标题优化 */
     .mecha-title {
         font-family: 'Orbitron', sans-serif;
         font-weight: 900;
-        font-size: 28px; /* 手机端适配套 */
+        font-size: 28px;
         background: linear-gradient(180deg, #fff, #888);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
@@ -59,7 +58,7 @@ st.markdown("""
         opacity: 0.8;
     }
 
-    /* 3. 输入框与下拉框 (增加高度，方便手指点击) */
+    /* 3. 输入框与下拉框 */
     .stTextInput input, .stNumberInput input, .stSelectbox div[data-baseweb="select"] > div {
         background-color: rgba(22, 27, 34, 0.9) !important;
         border: 1px solid #30363d !important;
@@ -67,32 +66,25 @@ st.markdown("""
         font-family: 'Rajdhani', sans-serif !important;
         font-weight: bold;
         border-radius: 6px;
-        min-height: 45px !important; /* 增大触控区域 */
-        font-size: 16px !important;  /* 防止手机端输入自动放大 */
+        min-height: 45px !important; 
+        font-size: 16px !important;  
     }
 
-    /* 缩小列之间的间距，让一行能放下4个控件 */
-    [data-testid="column"] {
-        padding: 0 !important;
-    }
-    [data-testid="stHorizontalBlock"] {
-        gap: 0.3rem !important; /* 极窄间距 */
-    }
-
+    [data-testid="column"] { padding: 0 !important; }
+    [data-testid="stHorizontalBlock"] { gap: 0.3rem !important; }
     .stMarkdown p, label { color: #8b949e !important; font-size: 12px !important; }
 
-    /* 4. 按钮优化 (机甲风格 + 易触控) */
+    /* 4. 按钮优化 */
     .stButton > button {
         font-family: 'Orbitron', sans-serif !important;
         letter-spacing: 1px;
         border: 1px solid #30363d;
         border-radius: 6px;
-        min-height: 45px !important; /* 按钮加高 */
-        padding: 0px 5px !important; /* 减少内边距，防止文字撑开 */
+        min-height: 45px !important;
+        padding: 0px 5px !important;
         font-size: 14px !important;
     }
 
-    /* 赢/Primary */
     button[kind="primary"] {
         background: linear-gradient(180deg, rgba(0, 242, 255, 0.15), rgba(0, 242, 255, 0.05));
         border: 1px solid #00F2FF;
@@ -100,14 +92,13 @@ st.markdown("""
         box-shadow: 0 0 8px rgba(0, 242, 255, 0.15);
     }
 
-    /* 输/Secondary */
     button[kind="secondary"] {
         background: linear-gradient(180deg, rgba(255, 0, 85, 0.15), rgba(255, 0, 85, 0.05));
         border: 1px solid #FF0055;
         color: #FF0055 !important;
     }
 
-    /* 5. 结果卡片 (紧凑版) */
+    /* 5. 结果卡片 */
     .result-card {
         background: rgba(13, 17, 23, 0.95);
         border: 1px solid #30363d;
@@ -126,7 +117,6 @@ st.markdown("""
         margin-top: 15px;
     }
 
-    /* 7. 隐藏右上角汉堡菜单和底部 footer，让界面更像原生App */
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
     header {visibility: hidden;}
@@ -134,7 +124,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 
-# ================= 🧠 数据逻辑 (完全保持不变) =================
+# ================= 🧠 数据逻辑 =================
 
 def load_data():
     if os.path.exists(DATA_FILE):
@@ -180,7 +170,7 @@ if 'pending_data' not in st.session_state:
     st.session_state.pending_data = None
 
 
-# 回调函数
+# --- 回调函数 ---
 def delete_player(target_id):
     st.session_state.players = [p for p in st.session_state.players if p['id'] != target_id]
     st.session_state.pending_data = None
@@ -205,10 +195,29 @@ def toggle_win(target_id):
     st.session_state.pending_data = None
 
 
+# 🔴 核心修复：彻底重置系统 (恢复出厂设置)
 def reset_scores():
-    for p in st.session_state.players:
-        p['score'] = 0.0
+    # 1. 清空当前列表
+    st.session_state.players = []
+
+    # 2. 重新按照初始名单生成 8 个人
+    # 注意：这里调用 get_new_id() 会生成全新的 ID
+    # 这样 Streamlit 就会认为这是一组全新的控件，从而彻底清除之前的输入缓存
+    for i in range(8):
+        default_name = PLAYER_LIST[i % len(PLAYER_LIST)]
+        st.session_state.players.append({
+            'id': get_new_id(),
+            'name': default_name,
+            'is_custom': False,
+            'score': 0.0,
+            'is_win': True
+        })
+
+    # 3. 清空待确认数据
     st.session_state.pending_data = None
+
+    # 4. 提示
+    st.toast("🔄 SYSTEM REBOOTED (系统已重置)")
 
 
 def cancel_save():
@@ -227,13 +236,13 @@ def confirm_save():
 # ================= 📱 界面搭建 =================
 
 st.markdown('<div class="mecha-title">SCIENCE DE RECT</div>', unsafe_allow_html=True)
-st.markdown('<div class="mecha-subtitle">MOBILE TACTICAL SYSTEM // V6.0</div>', unsafe_allow_html=True)
+st.markdown('<div class="mecha-subtitle">MOBILE TACTICAL SYSTEM // V6.2 REBOOT</div>', unsafe_allow_html=True)
 
 tab1, tab2 = st.tabs(["🚀 战术结算", "💾 历史档案"])
 
 # --- Tab 1 ---
 with tab1:
-    with st.expander("⚙️ 系统参数 (PARAMETERS)", expanded=False):  # 默认折叠，节省手机空间
+    with st.expander("⚙️ 系统参数 (PARAMETERS)", expanded=False):
         c1, c2 = st.columns(2)
         ratio = c1.number_input("⚡ 汇率 (Rate)", value=40, min_value=1)
         fee = c2.number_input("🏠 维护费 (Fee)", value=0, min_value=0)
@@ -242,14 +251,10 @@ with tab1:
 
     for p in st.session_state.players:
         with st.container():
-            # 【核心优化】：调整了列宽比例，适配手机窄屏
-            # 删除键变窄，名字和分数栏给更多空间
             c_del, c_name, c_btn, c_score = st.columns([0.5, 2.5, 1.8, 2.2])
 
-            # 1. 删除按钮
             c_del.button("✕", key=f"del_{p['id']}", type="secondary", on_click=delete_player, args=(p['id'],))
 
-            # 2. 名字栏
             if p['is_custom']:
                 new_name = c_name.text_input(
                     "Input ID", value=p['name'], key=f"txt_{p['id']}",
@@ -275,19 +280,19 @@ with tab1:
                 else:
                     p['name'] = selected_opt
 
-            # 3. 输赢按钮
             btn_label = "WIN" if p['is_win'] else "LOSE"
             btn_type = "primary" if p['is_win'] else "secondary"
             c_btn.button(btn_label, key=f"btn_{p['id']}", type=btn_type, on_click=toggle_win, args=(p['id'],),
                          use_container_width=True)
 
-            # 4. 分数
             p['score'] = c_score.number_input("Score", value=p['score'], step=100.0, key=f"score_{p['id']}",
                                               label_visibility="collapsed")
 
     st.markdown("###")
     ca, cb = st.columns(2)
     ca.button("➕ 增加干员", on_click=add_player, use_container_width=True)
+
+    # 重置按钮：彻底恢复初始状态
     cb.button("🧹 重置系统", type="secondary", on_click=reset_scores, use_container_width=True)
 
     st.markdown("---")
